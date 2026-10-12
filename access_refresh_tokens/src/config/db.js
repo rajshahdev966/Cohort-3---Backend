@@ -1,6 +1,7 @@
 import mongoose from "mongoose"
+import config from "./config.js";
 
 export async function connectDb() {
-    await mongoose.connect("mongodb://localhost:27017/access_refresh_token1");
+    await mongoose.connect(config.MONGO_URI);
     console.log("Database connected successfully");
 }

@@ -1,8 +1,7 @@
 import {Router} from "express"
-import userModel from "../../../../access_refresh_tokens/src/models/user.model.js";
 import bcrypt from "bcryptjs"
-import userModdel from "../models/auth.models.js";
-import { generateToken, verifyAcessToken } from "../utils/auth.utils.js";
+import userModel from "../models/auth.models.js";
+import { generateToken, verifyAcessToken, verifyRefreshToken } from "../utils/auth.utils.js";
 
 const routes = Router();
 
@@ -67,7 +66,7 @@ routes.get("/me", async (req,res)=> {
         })
     }
 
-    const user = await userModdel.findById(decoded.userId || decoded.id);
+    const user = await userModel.findById(decoded.userId || decoded.id);
 
     if(!user){
         return res.status(404).json({
@@ -86,6 +85,48 @@ routes.get("/me", async (req,res)=> {
                 email: user.email,
                 name: user.name
             }
+        }
+    })
+})
+
+routes.post("/refresh", async(req, res)=> {
+    const refreshToken = req.cookies.refreshToken;
+
+    if(!refreshToken){
+        return res.status(401).json({
+            message: "Unauthorized, refresh token not found",
+            error: {
+                field: "refresh-token",
+                message: "Refresh token not found"
+            }
+        })
+    }
+
+    const decoded = verifyRefreshToken(refreshToken);
+    if(!decoded){
+        return res.status(401).json({
+            message: "Unauthorized, refresh token invalid or expired",
+            error: {
+                field: "refresh-token",
+                message: "Refresh token invalid or expired"
+            }
+        })
+    }
+    const {accessToken, refreshToken: newRefreshToken} = generateToken({userId: decoded.id});
+
+    const user = await userModel.findById(decoded.id);
+
+    useer.refreshToken = newRefreshToken;
+    await user.save();
+
+    res.cookie("refreshToken", newRefreshToken, {
+        httpOnly: true
+    })
+
+    return res.status(200).json({
+        message: "Access token refreshed successfully",
+        data: {
+            accessToken
         }
     })
 })
